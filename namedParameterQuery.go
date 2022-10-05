@@ -1,69 +1,69 @@
 /*
-	Provides support for named parameters in SQL queries used by Go / golang programs and libraries.
+Provides support for named parameters in SQL queries used by Go / golang programs and libraries.
 
-	Named parameters are not supported by all SQL query engines, and their standards are scattered.
-	But positional parameters have wide adoption across all databases.
+Named parameters are not supported by all SQL query engines, and their standards are scattered.
+But positional parameters have wide adoption across all databases.
 
-	This package translates SQL queries which use named parameters into queries which use positional parameters.
+This package translates SQL queries which use named parameters into queries which use positional parameters.
 
-	Example usage:
+Example usage:
 
-		query := NewNamedParameterQuery("
-			SELECT * FROM table
-			WHERE col1 = :foo
-		")
+	query := NewNamedParameterQuery("
+		SELECT * FROM table
+		WHERE col1 = :foo
+	")
 
-		query.SetValue("foo", "bar")
+	query.SetValue("foo", "bar")
 
-		connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
-		connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
+	connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
+	connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
 
-	In the example above, note the format of "QueryRow". In order to use named parameter queries,
-	you will need to use this exact format, including the variadic symbol "..."
+In the example above, note the format of "QueryRow". In order to use named parameter queries,
+you will need to use this exact format, including the variadic symbol "..."
 
-	Note that the example above uses "QueryRow", but named parameters used in this fashion
-	work equally well for "Query" and "Exec".
+Note that the example above uses "QueryRow", but named parameters used in this fashion
+work equally well for "Query" and "Exec".
 
-	It's also possible to pass in a map, instead of defining each parameter individually:
+It's also possible to pass in a map, instead of defining each parameter individually:
 
-		query := NewNamedParameterQuery("
-			SELECT * FROM table
-			WHERE col1 = :foo
-			AND col2 IN(:firstName, :middleName, :lastName)
-		")
+	query := NewNamedParameterQuery("
+		SELECT * FROM table
+		WHERE col1 = :foo
+		AND col2 IN(:firstName, :middleName, :lastName)
+	")
 
-		var parameterMap = map[string]interface{} {
-			"foo": 		"bar",
-			"firstName": 	"Alice",
-			"lastName": 	"Bob"
-			"middleName": 	"Eve",
-		}
+	var parameterMap = map[string]interface{} {
+		"foo": 		"bar",
+		"firstName": 	"Alice",
+		"lastName": 	"Bob"
+		"middleName": 	"Eve",
+	}
 
-		query.SetValuesFromMap(parameterMap)
+	query.SetValuesFromMap(parameterMap)
 
-		connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
-		connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
+	connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
+	connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
 
-	But of course, sometimes you just want to pass in an entire struct. No problem:
+But of course, sometimes you just want to pass in an entire struct. No problem:
 
-		type QueryValues struct {
-			Foo string		`sqlParameterName:"foo"`
-			FirstName string 	`sqlParameterName:"firstName"`
-			MiddleName string `sqlParameterName:"middleName"`
-			LastName string 	`sqlParameterName:"lirstName"`
-		}
+	type QueryValues struct {
+		Foo string		`db:"foo"`
+		FirstName string 	`db:"firstName"`
+		MiddleName string `db:"middleName"`
+		LastName string 	`db:"lirstName"`
+	}
 
-		query := NewNamedParameterQuery("
-			SELECT * FROM table
-			WHERE col1 = :foo
-			AND col2 IN(:firstName, :middleName, :lastName)
-		")
+	query := NewNamedParameterQuery("
+		SELECT * FROM table
+		WHERE col1 = :foo
+		AND col2 IN(:firstName, :middleName, :lastName)
+	")
 
-		parameter = new(QueryValues)
-		query.SetValuesFromStruct(parameter)
+	parameter = new(QueryValues)
+	query.SetValuesFromStruct(parameter)
 
-		connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
-		connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
+	connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
+	connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
 */
 package namedParameterQuery
 
@@ -76,9 +76,9 @@ import (
 )
 
 /*
-	NamedParameterQuery handles the translation of named parameters to positional parameters, for SQL statements.
-	It is not recommended to create zero-valued NamedParameterQuery objects by yourself;
-	instead use NewNamedParameterQuery
+NamedParameterQuery handles the translation of named parameters to positional parameters, for SQL statements.
+It is not recommended to create zero-valued NamedParameterQuery objects by yourself;
+instead use NewNamedParameterQuery
 */
 type NamedParameterQuery struct {
 
@@ -97,15 +97,15 @@ type NamedParameterQuery struct {
 }
 
 /*
-	NewNamedParameterQuery creates a new named parameter query using the given [queryText] as a SQL query which
-	contains named parameters. Named parameters are identified by starting with a ":"
-	e.g., ":name" refers to the parameter "name", and ":foo" refers to the parameter "foo".
+NewNamedParameterQuery creates a new named parameter query using the given [queryText] as a SQL query which
+contains named parameters. Named parameters are identified by starting with a ":"
+e.g., ":name" refers to the parameter "name", and ":foo" refers to the parameter "foo".
 
-	Except for their names, named parameters follow all the same rules as positional parameters;
-	they cannot be inside quoted strings, and cannot inject statements into a query. They can only
-	be used to insert values.
+Except for their names, named parameters follow all the same rules as positional parameters;
+they cannot be inside quoted strings, and cannot inject statements into a query. They can only
+be used to insert values.
 */
-func NewNamedParameterQuery(queryText string) (*NamedParameterQuery) {
+func NewNamedParameterQuery(queryText string) *NamedParameterQuery {
 
 	var ret *NamedParameterQuery
 
@@ -120,8 +120,8 @@ func NewNamedParameterQuery(queryText string) (*NamedParameterQuery) {
 }
 
 /*
-	setQuery parses out all named parameters, stores their locations, and
-	builds a "revised" query which uses positional parameters.
+setQuery parses out all named parameters, stores their locations, and
+builds a "revised" query which uses positional parameters.
 */
 func (this *NamedParameterQuery) setQuery(queryText string) {
 
@@ -142,9 +142,9 @@ func (this *NamedParameterQuery) setQuery(queryText string) {
 		i += width
 
 		// if it's a colon, do not write to builder, but grab name
-		if(character == ':') {
+		if character == ':' {
 
-			for ;; {
+			for {
 
 				character, width = utf8.DecodeRuneInString(queryText[i:])
 				i += width
@@ -165,7 +165,7 @@ func (this *NamedParameterQuery) setQuery(queryText string) {
 			revisedBuilder.WriteString("?")
 			parameterBuilder.Reset()
 
-			if(width <= 0) {
+			if width <= 0 {
 				break
 			}
 		}
@@ -174,15 +174,15 @@ func (this *NamedParameterQuery) setQuery(queryText string) {
 		revisedBuilder.WriteString(string(character))
 
 		// if it's a quote, continue writing to builder, but do not search for parameters.
-		if(character == '\'') {
+		if character == '\'' {
 
-			for ;; {
+			for {
 
 				character, width = utf8.DecodeRuneInString(queryText[i:])
 				i += width
 				revisedBuilder.WriteString(string(character))
 
-				if(character == '\'') {
+				if character == '\'' {
 					break
 				}
 			}
@@ -194,25 +194,25 @@ func (this *NamedParameterQuery) setQuery(queryText string) {
 }
 
 /*
-	GetParsedQuery returns a version of the original query text
-	whose named parameters have been replaced by positional parameters.
+GetParsedQuery returns a version of the original query text
+whose named parameters have been replaced by positional parameters.
 */
-func (this *NamedParameterQuery) GetParsedQuery() (string) {
+func (this *NamedParameterQuery) GetParsedQuery() string {
 	return this.revisedQuery
 }
 
 /*
-	GetParsedParameters returns an array of parameter objects that match the positional parameter list
-	from GetParsedQuery
+GetParsedParameters returns an array of parameter objects that match the positional parameter list
+from GetParsedQuery
 */
-func (this *NamedParameterQuery) GetParsedParameters() ([]interface{}) {
+func (this *NamedParameterQuery) GetParsedParameters() []interface{} {
 	return this.parameters
 }
 
 /*
-	SetValue sets the value of the given [parameterName] to the given [parameterValue].
-	If the parsed query does not have a placeholder for the given [parameterName],
-	this method does nothing.
+SetValue sets the value of the given [parameterName] to the given [parameterValue].
+If the parsed query does not have a placeholder for the given [parameterName],
+this method does nothing.
 */
 func (this *NamedParameterQuery) SetValue(parameterName string, parameterValue interface{}) {
 
@@ -222,11 +222,11 @@ func (this *NamedParameterQuery) SetValue(parameterName string, parameterValue i
 }
 
 /*
-	SetValuesFromMap uses every key/value pair in the given [parameters] as a parameter replacement
-	for this query. This is equivalent to calling SetValue for every key/value pair
-	in the given [parameters] map.
-	If there are any keys/values present in the map that aren't part of the query,
-	they are ignored.
+SetValuesFromMap uses every key/value pair in the given [parameters] as a parameter replacement
+for this query. This is equivalent to calling SetValue for every key/value pair
+in the given [parameters] map.
+If there are any keys/values present in the map that aren't part of the query,
+they are ignored.
 */
 func (this *NamedParameterQuery) SetValuesFromMap(parameters map[string]interface{}) {
 
@@ -236,19 +236,19 @@ func (this *NamedParameterQuery) SetValuesFromMap(parameters map[string]interfac
 }
 
 /*
-	SetValuesFromStruct uses reflection to find every public field of the given struct [parameters]
-	and set their key/value as named parameters in this query.
-	If the given [parameters] is not a struct, this will return an error.
+SetValuesFromStruct uses reflection to find every public field of the given struct [parameters]
+and set their key/value as named parameters in this query.
+If the given [parameters] is not a struct, this will return an error.
 
-	If you do not wish for a field in the struct to be added by its literal name,
-	The struct may optionally specify the sqlParameterName as a tag on the field.
-	e.g., a struct field may say something like:
+If you do not wish for a field in the struct to be added by its literal name,
+The struct may optionally specify the db as a tag on the field.
+e.g., a struct field may say something like:
 
-		type Test struct {
-			Foo string `sqlParameterName:"foobar"`
-		}
+	type Test struct {
+		Foo string `db:"foobar"`
+	}
 */
-func (this *NamedParameterQuery) SetValuesFromStruct(parameters interface{}) (error) {
+func (this *NamedParameterQuery) SetValuesFromStruct(parameters interface{}) error {
 
 	var fieldValues reflect.Value
 	var fieldValue reflect.Value
@@ -259,7 +259,7 @@ func (this *NamedParameterQuery) SetValuesFromStruct(parameters interface{}) (er
 
 	fieldValues = reflect.ValueOf(parameters)
 
-	if(fieldValues.Kind() != reflect.Struct) {
+	if fieldValues.Kind() != reflect.Struct {
 		return errors.New("Unable to add query values from parameter: parameter is not a struct")
 	}
 
@@ -273,13 +273,13 @@ func (this *NamedParameterQuery) SetValuesFromStruct(parameters interface{}) (er
 		// public field?
 		visibilityCharacter, _ = utf8.DecodeRuneInString(parameterField.Name[0:])
 
-		if(fieldValue.CanSet() || unicode.IsUpper(visibilityCharacter)) {
+		if fieldValue.CanSet() || unicode.IsUpper(visibilityCharacter) {
 
 			// check to see if this has a tag indicating a different query name
-			queryTag = parameterField.Tag.Get("sqlParameterName")
+			queryTag = parameterField.Tag.Get("db")
 
 			// otherwise just add the struct's name.
-			if(len(queryTag) <= 0) {
+			if len(queryTag) <= 0 {
 				queryTag = parameterField.Name
 			}
 

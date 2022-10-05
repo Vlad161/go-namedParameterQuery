@@ -115,10 +115,10 @@ But maybe you know the benefits of strong typing, and want to add entire structs
 No problem.
 
 	type QueryValues struct {
-		Foo string		`sqlParameterName:"foo"`
-		FirstName string 	`sqlParameterName:"firstName"`
-		MiddleName string `sqlParameterName:"middleName"`
-		LastName string 	`sqlParameterName:"lirstName"`
+		Foo string		`db:"foo"`
+		FirstName string 	`db:"firstName"`
+		MiddleName string `db:"middleName"`
+		LastName string 	`db:"lirstName"`
 	}
 
 	query := NewNamedParameterQuery("
@@ -133,7 +133,7 @@ No problem.
 	connection, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/db")
 	connection.QueryRow(query.GetParsedQuery(), (query.GetParsedParameters())...)
 
-When defining your struct, you don't *need* to add the "sqlParameterName" tags.
+When defining your struct, you don't *need* to add the "db" tags.
 But if your query uses lowercase variable names (as mine did), your struct
 will need to have exportable field names (as above) you can translate between the two
 with a tag.
